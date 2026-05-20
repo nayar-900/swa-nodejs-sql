@@ -58,8 +58,7 @@
 - Resource Group: `rg-taskapp-tf`
 - Azure Container Registry: `acrtaskapprayan`
 
-![Terraform Show](screenshots/terraform-show.png)
-![Terraform State](screenshots/tfstate-blob.png)
+![Terraform State](screenshots/tfstate-blob-jpeg)
 
 ---
 
@@ -103,7 +102,7 @@
 SAST (SonarQube) → SCA (Snyk) → Build & Deploy → DAST (OWASP ZAP)
 
 
-![Security Pipeline](screenshots/security-pipeline-all-stages.png)
+![Security Pipeline](screenshots/security-pipeline-all-stages.jpeg)
 
 ---
 
