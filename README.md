@@ -58,7 +58,7 @@
 - Resource Group: `rg-taskapp-tf`
 - Azure Container Registry: `acrtaskapprayan`
 
-![Terraform State](screenshots/tfstate-blob-jpeg)
+![Terraform State](screenshots/tfstate-blob.jpeg)
 
 ---
 
