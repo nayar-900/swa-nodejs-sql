@@ -1,0 +1,39 @@
+# Frontend CI/CD Pipeline
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - src/3-swa/**
+
+variables:
+  - group: taskapp-variables
+
+stages:
+  - stage: BuildAndDeploy
+    displayName: 'Build and Deploy Frontend'
+    jobs:
+      - job: BuildJob
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - checkout: self
+
+          - task: NodeTool@0
+            displayName: 'Install Node.js'
+            inputs:
+              versionSpec: '18.x'
+
+          - script: |
+              cd src/3-swa
+              npm ci
+              CI=false npm run build
+            displayName: 'Build React App'
+
+          - task: AzureStaticWebApp@0
+            displayName: 'Deploy to Static Web App'
+            inputs:
+              app_location: 'src/3-swa'
+              output_location: 'build'
+              azure_static_web_apps_api_token: $(AZURE_STATIC_WEB_APP_TOKEN)

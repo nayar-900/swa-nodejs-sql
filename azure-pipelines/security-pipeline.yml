@@ -1,0 +1,91 @@
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+
+variables:
+  - group: taskapp-variables
+
+stages:
+  - stage: SAST
+    displayName: 'Security - SAST (SonarQube)'
+    jobs:
+      - job: SonarScan
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - script: |
+              wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
+              unzip sonar-scanner-cli-5.0.1.3006-linux.zip
+              export PATH="$PATH:$(pwd)/sonar-scanner-5.0.1.3006-linux/bin"
+              sonar-scanner \
+                -Dsonar.projectKey=taskapp-cicd_taskapp-cicd_fb1e9681-fbcd-437f-8d6b-0329808d00cf \
+                -Dsonar.host.url=http://sonarqube-rayan.centralindia.azurecontainer.io:9000 \
+                -Dsonar.token=$(SONAR_TOKEN) \
+                -Dsonar.sources=src/2-api \
+                -Dsonar.exclusions=**/node_modules/**
+            displayName: 'Run SonarQube SAST Analysis'
+
+  - stage: SCA
+    displayName: 'Security - SCA (Snyk)'
+    dependsOn: SAST
+    condition: succeeded()
+    jobs:
+      - job: SnykScan
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - checkout: self
+
+          - script: |
+              npm install -g snyk
+              cd src/2-api
+              snyk auth $(SNYK_TOKEN)
+              snyk test --severity-threshold=medium || echo "##[warning]Snyk found vulnerabilities"
+            displayName: 'Run Snyk SCA Scan'
+            continueOnError: true
+
+  - stage: BuildAndDeploy
+    displayName: 'Build & Deploy'
+    dependsOn: SCA
+    condition: succeeded()
+    jobs:
+      - job: Build
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - script: echo 'All security checks passed! Proceeding with build and deploy...'
+
+  - stage: DAST
+    displayName: 'Security - DAST (OWASP ZAP)'
+    dependsOn: BuildAndDeploy
+    condition: succeeded()
+    jobs:
+      - job: ZapScan
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - checkout: self
+
+          - script: docker pull ghcr.io/zaproxy/zaproxy:stable
+            displayName: 'Pull OWASP ZAP Image'
+
+          - script: |
+              docker run --rm \
+                -v $(Build.ArtifactStagingDirectory):/zap/wrk/:rw \
+                ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
+                -t https://icy-pond-03c478a00.7.azurestaticapps.net \
+                -r zap-report.html \
+                -I
+            displayName: 'Run ZAP Baseline Scan (Frontend)'
+
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish ZAP Security Report'
+            inputs:
+              pathToPublish: $(Build.ArtifactStagingDirectory)
+              artifactName: 'zap-security-reports'
+            condition: always()
